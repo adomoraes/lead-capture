@@ -1,0 +1,36 @@
+#lead-capture-form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-width: 300px;
+}
+
+#lead-capture-form input[type="email"] {
+	padding: 10px;
+	width: 100%;
+}
+
+#lead-capture-form button {
+	padding: 10px;
+	background-color: #0073aa;
+	color: #fff;
+	border: none;
+	cursor: pointer;
+}
+
+#lead-capture-form button:disabled {
+	background-color: #cccccc;
+	cursor: not-allowed;
+}
+
+#lead-capture-message p {
+	margin-top: 10px;
+}
+
+#lead-capture-message .success {
+	color: green;
+}
+
+#lead-capture-message .error {
+	color: red;
+}
