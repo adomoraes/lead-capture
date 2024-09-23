@@ -25,7 +25,6 @@ function lead_capture_enqueue_scripts() {
 }
 add_action('wp_enqueue_scripts', 'lead_capture_enqueue_scripts');
 
-
 // Registrar a tabela personalizada no banco de dados
 function lead_capture_create_table() {
     global $wpdb;
@@ -45,7 +44,73 @@ function lead_capture_create_table() {
 }
 register_activation_hook(__FILE__, 'lead_capture_create_table');
 
-// Incluir arquivos de funcionalidades
+// Registrar rotas customizadas para API REST
+function register_lead_capture_routes() {
+    register_rest_route('lead-capture/v1', '/subscribers', array(
+        'methods' => WP_REST_Server::READABLE, // Método GET
+        'callback' => 'handle_get_subscribers',
+        'permission_callback' => '__return_true'
+    ));
+
+    register_rest_route('lead-capture/v1', '/subscribers', array(
+        'methods' => WP_REST_Server::CREATABLE, // Método POST
+        'callback' => 'handle_post_subscriber',
+        'permission_callback' => '__return_true' // Permite acesso público ao POST.
+    ));
+}
+add_action('rest_api_init', 'register_lead_capture_routes');
+
+// Função para processar o POST - adicionar novos inscritos
+function handle_post_subscriber($request) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'lead_capture';
+    $params = $request->get_json_params();
+    $email = isset($params['email']) ? sanitize_email($params['email']) : '';
+
+    // Validação do e-mail
+    if (!is_email($email)) {
+        return new WP_Error('invalid_email', 'Por favor, insira um e-mail válido.', array('status' => 400));
+    }
+
+    // Verificar se o e-mail já está cadastrado
+    $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE email = %s", $email));
+    if ($exists) {
+        return new WP_Error('email_exists', 'E-mail já cadastrado.', array('status' => 400));
+    }
+
+    // Inserir no banco de dados
+    $result = $wpdb->insert($table_name, array(
+        'email' => $email,
+        'created_at' => current_time('mysql')
+    ));
+
+    if ($result) {
+        $response = rest_ensure_response(array(
+            'message' => 'Inscrição realizada com sucesso!',
+            'success' => true, // Certifique-se de incluir a propriedade 'success'
+        ));
+        $response->set_status(201); // Definir código de status HTTP para criação bem-sucedida
+        return $response;
+    } else {
+        return new WP_Error('db_error', 'Erro ao salvar a inscrição. Tente novamente mais tarde.', array('status' => 500));
+    }
+}
+
+// Função para processar o GET - retornar todos os inscritos
+function handle_get_subscribers($request) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'lead_capture';
+
+    // Obter todos os inscritos do banco de dados
+    $subscribers = $wpdb->get_results("SELECT * FROM $table_name");
+
+    // Retornar a lista de inscritos
+    $response = rest_ensure_response($subscribers);
+    $response->set_status(200); // Definir código de status HTTP para sucesso
+    return $response;
+}
+
+// Incluir arquivos de funcionalidades adicionais
 include(LEAD_CAPTURE_DIR . 'includes/form-handler.php');
 include(LEAD_CAPTURE_DIR . 'includes/admin-page.php');
 include(LEAD_CAPTURE_DIR . 'includes/export.php');
